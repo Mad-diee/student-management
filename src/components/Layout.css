@@ -1,0 +1,74 @@
+/* Floating decorative elements and background polish */
+body, html {
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+
+.floating-circle {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(2px);
+  z-index: 1;
+  animation: float 8s ease-in-out infinite;
+}
+.circle1 {
+  width: 180px;
+  height: 180px;
+  top: -60px;
+  left: -60px;
+  background: linear-gradient(135deg, #7f9cf5 0%, #b794f4 100%);
+  opacity: 0.25;
+  animation-delay: 0s;
+}
+.circle2 {
+  width: 260px;
+  height: 260px;
+  top: 40%;
+  right: -100px;
+  background: linear-gradient(135deg, #b794f4 0%, #90cdf4 100%);
+  opacity: 0.18;
+  animation-delay: 2s;
+}
+.circle3 {
+  width: 120px;
+  height: 120px;
+  bottom: -60px;
+  left: 35%;
+  background: linear-gradient(135deg, #90cdf4 0%, #f7fafc 100%);
+  opacity: 0.18;
+  animation-delay: 4s;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-30px) scale(1.05); }
+}
+
+.logo-gradient {
+  background: linear-gradient(90deg, #3b82f6 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+}
+
+/* Glassmorphism for card and navbar */
+.bg-white\/80, .bg-white\/90 {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Button enhancements */
+button, .rounded-lg {
+  box-shadow: 0 4px 24px 0 rgba(80, 112, 255, 0.10), 0 1.5px 4px 0 rgba(80, 112, 255, 0.08);
+}
+
+@media (max-width: 768px) {
+  .floating-circle.circle2 {
+    display: none;
+  }
+  .floating-circle.circle1, .floating-circle.circle3 {
+    width: 100px;
+    height: 100px;
+  }
+}
+
+/* You can add more custom styles here if needed */ 
