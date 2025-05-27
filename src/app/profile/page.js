@@ -19,6 +19,7 @@ export default function Profile() {
     present_address: "",
     permanent_address: "",
     photo_url: "",
+    name: "",
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -104,6 +105,7 @@ export default function Profile() {
           present_address: studentData.present_address || "",
           permanent_address: studentData.permanent_address || "",
           photo_url: studentData.photo_url || "",
+          name: studentData.name || "",
         });
       }
       setCourses(coursesData || []);
@@ -140,6 +142,7 @@ export default function Profile() {
       major_id: form.major_id ? parseInt(form.major_id) : null,
       department_id: form.department_id ? parseInt(form.department_id) : null,
       photo_url: form.photo_url || null,
+      name: form.name,
     };
 
     try {
@@ -220,6 +223,19 @@ export default function Profile() {
         )}
         <form onSubmit={handleSave} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Full Name
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={form.name ?? student?.name ?? ""}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
+                required
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Year of Admission

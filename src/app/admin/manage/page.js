@@ -300,8 +300,8 @@ export default function AdminManage() {
           {/* Add New Item Section */}
           <div className="mb-10 p-6 bg-gray-50 rounded-xl shadow-inner border border-gray-200">
             <h2 className="text-xl font-semibold text-blue-700 mb-6 flex items-center gap-2">
-              <FaPlusCircle className="text-green-600" /> Add New{" "}
-              {activeTab.slice(0, -1)}
+              Add New{" "}
+              {activeTab === "campuses" ? "Campus" : activeTab.slice(0, -1)}
             </h2>
             <form
               onSubmit={handleSubmit}
@@ -322,7 +322,7 @@ export default function AdminManage() {
               </div>
               {activeTab === "campuses" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-sm text-gray-700 mb-1">
                     Address
                   </label>
                   <input
@@ -392,7 +392,13 @@ export default function AdminManage() {
                   className="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 font-semibold shadow-md"
                   disabled={isLoading}
                 >
-                  {isLoading ? "Adding..." : `Add ${activeTab.slice(0, -1)}`}
+                  {isLoading
+                    ? "Adding..."
+                    : `Add ${
+                        activeTab === "campuses"
+                          ? "Campus"
+                          : activeTab.slice(0, -1)
+                      }`}
                 </button>
               </div>
             </form>
