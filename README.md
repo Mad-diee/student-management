@@ -1,6 +1,7 @@
 # Student Directory
 
 A modern web application for managing student information across multiple campuses.
+http://student-management-nine-beige.vercel.app/
 
 ## What This Project Does
 
