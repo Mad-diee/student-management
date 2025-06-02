@@ -2,15 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../supabaseClient";
+import { authAPI } from "@/lib/apiClient";
 import Link from "next/link";
 import { FaUserGraduate } from "react-icons/fa";
+import { useUser } from "@/context/UserContext";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { updateUser } = useUser();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -22,98 +24,102 @@ export default function Login() {
     setIsLoading(true);
     setError(null);
     try {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", form.email)
-        .eq("password", form.password)
-        .single();
-      if (userError || !userData) throw new Error("Invalid email or password");
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userData.id)
-        .single();
-      if (roleError || !roleData)
-        throw new Error("No role found for this user");
-      localStorage.setItem(
-        "user",
-        JSON.stringify({ ...userData, role: roleData.role })
-      );
-      if (roleData.role === "admin") router.push("/admin");
+      const response = await authAPI.login(form);
+      const { user, token, role } = response.data;
+
+      // Store user data and token in localStorage
+      const userData = {
+        id: user.id,
+        email: user.email,
+        student_id: user.student_id,
+        role,
+        token,
+      };
+      localStorage.setItem("user", JSON.stringify(userData));
+      updateUser(userData);
+
+      // Redirect based on role
+      if (role === "admin") router.push("/admin");
       else router.push("/profile");
     } catch (err) {
-      setError(err.message || "Login failed. Please try again.");
+      setError(err.error || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-orange-100 px-2 py-8">
-      <div className="w-full max-w-md bg-white/90 rounded-2xl shadow-2xl p-6 xs:p-8 animate-fade-in-up">
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mb-3 shadow">
-            <FaUserGraduate className="text-3xl text-blue-600" />
-          </div>
-          <h1 className="text-2xl xs:text-3xl font-bold font-playfair text-blue-700 text-center">
-            Login
-          </h1>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-orange-100">
+      <div className="max-w-md w-full bg-white/70 backdrop-blur rounded-2xl shadow-xl p-8 animate-fade-in-up">
+        <div className="text-center mb-8">
+          <FaUserGraduate className="mx-auto text-5xl text-blue-500 mb-4" />
+          <h1 className="text-3xl font-bold text-gray-800">Welcome Back</h1>
+          <p className="text-gray-600 mt-2">Please sign in to continue</p>
         </div>
+
         {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-red-700 text-sm text-center">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
             {error}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-5 xs:space-y-6">
+
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Email
             </label>
             <input
               type="email"
+              id="email"
               name="email"
               value={form.email}
               onChange={handleChange}
-              className="w-full p-3 xs:p-4 border border-gray-300 rounded-lg text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
               required
-              autoComplete="email"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              placeholder="Enter your email"
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Password
             </label>
             <input
               type="password"
+              id="password"
               name="password"
               value={form.password}
               onChange={handleChange}
-              className="w-full p-3 xs:p-4 border border-gray-300 rounded-lg text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
               required
-              minLength={6}
-              autoComplete="current-password"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              placeholder="Enter your password"
             />
           </div>
+
           <button
             type="submit"
-            className="w-full py-3 xs:py-4 bg-blue-600 text-white rounded-lg font-semibold text-base xs:text-lg shadow hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             disabled={isLoading}
+            className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Logging in..." : "Login"}
+            {isLoading ? "Signing in..." : "Sign In"}
           </button>
         </form>
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{" "}
-            <Link
-              href="/register"
-              className="text-blue-600 hover:text-blue-700 font-medium underline underline-offset-2"
-            >
-              Register here
-            </Link>
-          </p>
-        </div>
+
+        <p className="mt-6 text-center text-gray-600">
+          Don't have an account?{" "}
+          <Link
+            href="/register"
+            className="text-blue-500 hover:text-blue-600 font-medium"
+          >
+            Register here
+          </Link>
+        </p>
       </div>
     </div>
   );

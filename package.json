@@ -6,12 +6,14 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "run": "bun run.ts"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.49.8",
     "dotenv": "^16.5.0",
+    "flask-cors": "^0.0.1",
     "framer-motion": "^12.14.0",
     "next": "15.1.8",
     "next-auth": "^4.24.11",

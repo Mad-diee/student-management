@@ -2,148 +2,117 @@
 
 -- Campuses/Colleges
 CREATE TABLE campuses (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
     address TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Courses
 CREATE TABLE courses (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
     description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    department_id VARCHAR(36) REFERENCES departments(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Majors
 CREATE TABLE majors (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
     description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Departments
 CREATE TABLE departments (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    campus_id INTEGER REFERENCES campuses(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Co-curricular Interests
-CREATE TABLE co_curricular_interests (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    is_default BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    campus_id VARCHAR(36) REFERENCES campuses(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Users
 CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    id VARCHAR(36) PRIMARY KEY,
+    email VARCHAR(120) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- User Roles
 CREATE TABLE user_roles (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
-    role VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) REFERENCES users(id),
+    role VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Students
 CREATE TABLE students (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
-    name VARCHAR(255) NOT NULL,
-    registered_number VARCHAR(50) UNIQUE NOT NULL,
-    year_of_admission INTEGER NOT NULL,
-    campus_id INTEGER REFERENCES campuses(id),
-    course_id INTEGER REFERENCES courses(id),
-    major_id INTEGER REFERENCES majors(id),
-    department_id INTEGER REFERENCES departments(id),
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) REFERENCES users(id),
+    name VARCHAR(100) NOT NULL,
+    registered_number VARCHAR(20) UNIQUE,
+    year_of_admission INTEGER,
+    campus_id VARCHAR(36) REFERENCES campuses(id),
+    course_id VARCHAR(36) REFERENCES courses(id),
+    major_id VARCHAR(36) REFERENCES majors(id),
+    department_id VARCHAR(36) REFERENCES departments(id),
     mobile VARCHAR(20),
-    personal_email VARCHAR(255),
+    personal_email VARCHAR(120),
     emergency_contact VARCHAR(20),
     present_address TEXT,
     permanent_address TEXT,
     photo_url TEXT,
     is_alumnus BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Student Interests (Co-curricular)
-CREATE TABLE student_co_curricular_interests (
-    id SERIAL PRIMARY KEY,
-    student_id INTEGER REFERENCES students(id),
-    interest_id INTEGER REFERENCES co_curricular_interests(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Student Extra Curricular Interests
-CREATE TABLE student_extra_curricular_interests (
-    id SERIAL PRIMARY KEY,
-    student_id INTEGER REFERENCES students(id),
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Student Hobbies
-CREATE TABLE student_hobbies (
-    id SERIAL PRIMARY KEY,
-    student_id INTEGER REFERENCES students(id),
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Student Internships
 CREATE TABLE student_internships (
-    id SERIAL PRIMARY KEY,
-    student_id INTEGER REFERENCES students(id),
-    company_name VARCHAR(255) NOT NULL,
-    position VARCHAR(255),
+    id VARCHAR(36) PRIMARY KEY,
+    student_id VARCHAR(36) REFERENCES students(id),
+    company_name VARCHAR(100) NOT NULL,
+    position VARCHAR(100),
     start_date DATE,
     end_date DATE,
     description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Student Job Offers
 CREATE TABLE student_job_offers (
-    id SERIAL PRIMARY KEY,
-    student_id INTEGER REFERENCES students(id),
-    company_name VARCHAR(255) NOT NULL,
-    position VARCHAR(255),
+    id VARCHAR(36) PRIMARY KEY,
+    student_id VARCHAR(36) REFERENCES students(id),
+    company_name VARCHAR(100) NOT NULL,
+    position VARCHAR(100),
     offer_date DATE,
     status VARCHAR(50),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Staff
 CREATE TABLE staff (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
-    full_name VARCHAR(255) NOT NULL,
-    department_id INTEGER REFERENCES departments(id),
-    campus_id INTEGER REFERENCES campuses(id),
-    designation VARCHAR(255),
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) REFERENCES users(id),
+    full_name VARCHAR(100) NOT NULL,
+    department_id VARCHAR(36) REFERENCES departments(id),
+    campus_id VARCHAR(36) REFERENCES campuses(id),
+    designation VARCHAR(100),
     mobile VARCHAR(20),
-    email VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    email VARCHAR(120),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Privacy Settings
 CREATE TABLE privacy_settings (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) REFERENCES users(id),
     field_name VARCHAR(50) NOT NULL,
     is_private BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for better performance

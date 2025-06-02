@@ -2,12 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../supabaseClient";
-import { FaUserGraduate } from "react-icons/fa";
-import Header from "../../components/Header";
+import {
+  studentsAPI,
+  campusesAPI,
+  coursesAPI,
+  majorsAPI,
+  departmentsAPI,
+} from "@/lib/apiClient";
+import { FaUser, FaSpinner } from "react-icons/fa";
+import { useUser } from "@/context/UserContext";
+
 export default function Profile() {
-  const [student, setStudent] = useState(null);
+  const [studentData, setStudentData] = useState(null);
   const [form, setForm] = useState({
+    name: "",
+    registered_number: "",
     year_of_admission: "",
     campus_id: "",
     course_id: "",
@@ -19,101 +28,84 @@ export default function Profile() {
     present_address: "",
     permanent_address: "",
     photo_url: "",
-    name: "",
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [campuses, setCampuses] = useState([]);
   const [courses, setCourses] = useState([]);
   const [majors, setMajors] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [campuses, setCampuses] = useState([]);
   const router = useRouter();
+  const { user, isLoading: userLoading } = useUser();
 
   useEffect(() => {
     const checkAuth = async () => {
-      try {
-        const storedUser = localStorage.getItem("user");
-        if (!storedUser) {
-          router.replace("/login");
-          return;
-        }
+      if (userLoading) return;
 
-        const parsedUser = JSON.parse(storedUser);
-        if (parsedUser.role === "admin") {
-          router.replace("/admin");
-          return;
-        }
-
-        if (parsedUser.role !== "student") {
-          router.replace("/search");
-          return;
-        }
-
-        // If we get here, user is authenticated and is a student
-        await fetchData(parsedUser.id);
-      } catch (err) {
-        console.error("Auth check error:", err);
-        router.replace("/login");
+      if (!user) {
+        router.push("/login");
+        return;
       }
+
+      if (!user.student_id) {
+        setError(
+          "You don't have access to this page. Please login as a student."
+        );
+        router.push("/login");
+        return;
+      }
+
+      await fetchData();
     };
-
     checkAuth();
-  }, []);
+  }, [user, userLoading, router]);
 
-  const fetchData = async (userId) => {
+  const fetchData = async () => {
     try {
-      setIsLoading(true);
-      setError(null);
+      const { data: student } = await studentsAPI.getById(user.student_id);
+      console.log("Fetched student data:", student); // Debug log
+
+      if (student && student.data) {
+        const s = student.data;
+        setStudentData(s);
+        setForm({
+          name: s.name || "",
+          registered_number: s.registered_number || "",
+          year_of_admission: s.year_of_admission || "",
+          campus_id: s.campus?.id || "",
+          course_id: s.course?.id || "",
+          major_id: s.major?.id || "",
+          department_id: s.department?.id || "",
+          mobile: s.mobile || "",
+          personal_email: s.personal_email || "",
+          emergency_contact: s.emergency_contact || "",
+          present_address: s.present_address || "",
+          permanent_address: s.permanent_address || "",
+          photo_url: s.photo_url || "",
+        });
+      }
+
+      // Fetch all related data
       const [
-        { data: studentData },
+        { data: campusesData },
         { data: coursesData },
         { data: majorsData },
         { data: departmentsData },
-        { data: campusesData },
       ] = await Promise.all([
-        supabase
-          .from("students")
-          .select(
-            `
-            *,
-            course:courses(name),
-            major:majors(name),
-            department:departments(name),
-            campus:campuses(name)
-          `
-          )
-          .eq("user_id", userId)
-          .single(),
-        supabase.from("courses").select("*"),
-        supabase.from("majors").select("*"),
-        supabase.from("departments").select("*"),
-        supabase.from("campuses").select("*"),
+        campusesAPI.getAll(),
+        coursesAPI.getAll(),
+        majorsAPI.getAll(),
+        departmentsAPI.getAll(),
       ]);
 
-      if (studentData) {
-        setStudent(studentData);
-        setForm({
-          year_of_admission: studentData.year_of_admission || "",
-          campus_id: studentData.campus_id || "",
-          course_id: studentData.course_id || "",
-          major_id: studentData.major_id || "",
-          department_id: studentData.department_id || "",
-          mobile: studentData.mobile || "",
-          personal_email: studentData.personal_email || "",
-          emergency_contact: studentData.emergency_contact || "",
-          present_address: studentData.present_address || "",
-          permanent_address: studentData.permanent_address || "",
-          photo_url: studentData.photo_url || "",
-          name: studentData.name || "",
-        });
-      }
+      setCampuses(campusesData || []);
       setCourses(coursesData || []);
       setMajors(majorsData || []);
       setDepartments(departmentsData || []);
-      setCampuses(campusesData || []);
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error fetching data:", err);
       setError("Failed to load profile data. Please try again.");
     } finally {
       setIsLoading(false);
@@ -127,294 +119,306 @@ export default function Profile() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSaving(true);
     setError(null);
     setSuccess(null);
 
-    // Convert integer fields
-    const updateData = {
-      ...form,
-      year_of_admission: form.year_of_admission
-        ? parseInt(form.year_of_admission)
-        : null,
-      campus_id: form.campus_id ? parseInt(form.campus_id) : null,
-      course_id: form.course_id ? parseInt(form.course_id) : null,
-      major_id: form.major_id ? parseInt(form.major_id) : null,
-      department_id: form.department_id ? parseInt(form.department_id) : null,
-      photo_url: form.photo_url || null,
-      name: form.name,
-    };
-
     try {
-      const { error: updateError } = await supabase
-        .from("students")
-        .update(updateData)
-        .eq("id", student.id);
+      const updateData = {
+        name: form.name,
+        registered_number: form.registered_number,
+        year_of_admission: form.year_of_admission,
+        campus_id: form.campus_id,
+        course_id: form.course_id,
+        major_id: form.major_id,
+        department_id: form.department_id,
+        mobile: form.mobile,
+        personal_email: form.personal_email,
+        emergency_contact: form.emergency_contact,
+        present_address: form.present_address,
+        permanent_address: form.permanent_address,
+        photo_url: form.photo_url,
+      };
 
-      if (updateError) throw updateError;
-
-      setSuccess("Profile updated successfully.");
-      // Refresh student data
-      const { data: updatedStudent } = await supabase
-        .from("students")
-        .select(
-          `
-          *,
-          course:courses(name),
-          major:majors(name),
-          department:departments(name),
-          campus:campuses(name)
-        `
-        )
-        .eq("id", student.id)
-        .single();
-      setStudent(updatedStudent);
+      await studentsAPI.update(user.student_id, updateData);
+      setSuccess("Profile updated successfully!");
+      await fetchData(); // Refresh data
     } catch (err) {
-      setError("Failed to update profile. Please try again.");
-      console.error("Error:", err);
+      console.error("Error updating profile:", err);
+      setError(
+        err.response?.data?.message ||
+          "Failed to update profile. Please try again."
+      );
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  if (isLoading) {
+  if (isLoading || userLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-orange-100">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-orange-100 px-2">
-        <div className="max-w-xl w-full bg-red-50 border border-red-200 rounded-2xl p-6 text-red-700 text-center shadow-xl animate-fade-in-up">
-          {error}
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <FaSpinner className="animate-spin text-4xl text-blue-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-orange-100 flex flex-col">
-      <Header />
-      <div className="w-full max-w-3xl mx-auto bg-white/90 rounded-2xl shadow-2xl p-6 xs:p-10 animate-fade-in-up mt-8 mb-8">
-        <div className="flex flex-col items-center mb-6">
-          {form.photo_url || student?.photo_url ? (
-            <img
-              src={form.photo_url || student?.photo_url}
-              alt="Profile Photo"
-              className="w-32 h-32 rounded-full object-cover border-4 border-blue-200 mb-2 shadow"
-            />
-          ) : (
-            <div className="w-32 h-32 rounded-full bg-blue-100 flex items-center justify-center mb-2 border-4 border-blue-200 shadow">
-              <FaUserGraduate className="text-5xl text-blue-600" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div className="px-6 py-8">
+            <div className="flex items-center justify-center mb-8">
+              <div className="w-40 h-40 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                {form.photo_url ? (
+                  <img
+                    src={form.photo_url}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <FaUser className="text-4xl text-blue-500" />
+                )}
+              </div>
             </div>
-          )}
-          <h1 className="text-2xl xs:text-3xl font-bold font-playfair text-blue-700 text-center mb-1">
-            My Profile
-          </h1>
-          <span className="text-gray-500 text-xs">Profile Photo</span>
+
+            <h1 className="text-3xl font-bold text-center text-gray-900 mb-8">
+              Student Profile
+            </h1>
+
+            {error && (
+              <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                {success}
+              </div>
+            )}
+
+            <form onSubmit={handleSave} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Registered Number
+                  </label>
+                  <input
+                    type="text"
+                    name="registered_number"
+                    value={form.registered_number}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Year of Admission
+                  </label>
+                  <input
+                    type="number"
+                    name="year_of_admission"
+                    value={form.year_of_admission}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Campus
+                  </label>
+                  <select
+                    name="campus_id"
+                    value={form.campus_id}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    required
+                  >
+                    <option value="">Select Campus</option>
+                    {campuses.map((campus) => (
+                      <option key={campus.id} value={campus.id}>
+                        {campus.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Course
+                  </label>
+                  <select
+                    name="course_id"
+                    value={form.course_id}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    required
+                  >
+                    <option value="">Select Course</option>
+                    {courses.map((course) => (
+                      <option key={course.id} value={course.id}>
+                        {course.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Major
+                  </label>
+                  <select
+                    name="major_id"
+                    value={form.major_id}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    required
+                  >
+                    <option value="">Select Major</option>
+                    {majors.map((major) => (
+                      <option key={major.id} value={major.id}>
+                        {major.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Department
+                  </label>
+                  <select
+                    name="department_id"
+                    value={form.department_id}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    required
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mobile
+                  </label>
+                  <input
+                    type="tel"
+                    name="mobile"
+                    value={form.mobile}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Personal Email
+                  </label>
+                  <input
+                    type="email"
+                    name="personal_email"
+                    value={form.personal_email}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Emergency Contact
+                  </label>
+                  <input
+                    type="tel"
+                    name="emergency_contact"
+                    value={form.emergency_contact}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Present Address
+                  </label>
+                  <textarea
+                    name="present_address"
+                    value={form.present_address}
+                    onChange={handleChange}
+                    rows="3"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Permanent Address
+                  </label>
+                  <textarea
+                    name="permanent_address"
+                    value={form.permanent_address}
+                    onChange={handleChange}
+                    rows="3"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Profile Picture URL
+                  </label>
+                  <input
+                    type="text"
+                    name="photo_url"
+                    value={form.photo_url}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <span className="flex items-center">
+                      <FaSpinner className="animate-spin mr-2" />
+                      Saving...
+                    </span>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-        {success && (
-          <div className="mb-4 bg-green-50 border border-green-200 rounded-md p-3 text-green-700 text-sm text-center">
-            {success}
-          </div>
-        )}
-        <form onSubmit={handleSave} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={form.name ?? student?.name ?? ""}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Year of Admission
-              </label>
-              <input
-                type="number"
-                name="year_of_admission"
-                value={
-                  form.year_of_admission ?? student.year_of_admission ?? ""
-                }
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Campus
-              </label>
-              <select
-                name="campus_id"
-                value={form.campus_id ?? student.campus_id ?? ""}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-                required
-              >
-                <option value="">Select Campus</option>
-                {campuses.map((campus) => (
-                  <option key={campus.id} value={campus.id}>
-                    {campus.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Course
-              </label>
-              <select
-                name="course_id"
-                value={form.course_id ?? student.course_id ?? ""}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-                required
-              >
-                <option value="">Select Course</option>
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Major
-              </label>
-              <select
-                name="major_id"
-                value={form.major_id ?? student.major_id ?? ""}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-                required
-              >
-                <option value="">Select Major</option>
-                {majors.map((major) => (
-                  <option key={major.id} value={major.id}>
-                    {major.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Department
-              </label>
-              <select
-                name="department_id"
-                value={form.department_id ?? student.department_id ?? ""}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-                required
-              >
-                <option value="">Select Department</option>
-                {departments.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mobile
-              </label>
-              <input
-                type="tel"
-                name="mobile"
-                value={form.mobile ?? student.mobile ?? ""}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Personal Email
-              </label>
-              <input
-                type="email"
-                name="personal_email"
-                value={form.personal_email ?? student.personal_email ?? ""}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Emergency Contact
-              </label>
-              <input
-                type="tel"
-                name="emergency_contact"
-                value={
-                  form.emergency_contact ?? student.emergency_contact ?? ""
-                }
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Present Address
-              </label>
-              <textarea
-                name="present_address"
-                value={form.present_address ?? student.present_address ?? ""}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-                rows="3"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Permanent Address
-              </label>
-              <textarea
-                name="permanent_address"
-                value={
-                  form.permanent_address ?? student.permanent_address ?? ""
-                }
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-                rows="3"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Profile Photo URL
-              </label>
-              <input
-                type="url"
-                name="photo_url"
-                value={form.photo_url ?? student?.photo_url ?? ""}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 bg-white"
-                placeholder="https://example.com/photo.jpg"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              className="w-full py-3 xs:py-4 bg-blue-600 text-white rounded-lg font-semibold text-base xs:text-lg shadow hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              disabled={isLoading}
-            >
-              {isLoading ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );
