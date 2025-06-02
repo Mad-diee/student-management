@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://student-management-mueq.onrender.com/api";
+const API_BASE_URL = "https://student-management-lkeg.onrender.com/api";
 
 // List of public endpoints that don't require authorization
 const PUBLIC_ENDPOINTS = [

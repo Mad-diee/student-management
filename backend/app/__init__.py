@@ -32,7 +32,7 @@ def create_app():
     # Configure CORS
     CORS(app, resources={
         r"/api/*": {
-            "origins": ["http://localhost:3000", "https://localhost:3000", "https://student-management-4i81.vercel.app"],
+            "origins": ["http://localhost:3000", "https://localhost:3000", "https://student-management-nine-beige.vercel.app"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"]
         }
